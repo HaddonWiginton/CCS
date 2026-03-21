@@ -10,6 +10,7 @@ import {
   PRESET_TASKS, SCOPE_SNIPPETS, ADDON_OPTIONS,
 } from '@/lib/utils';
 import CustomerSection from './CustomerSection';
+import ISSACalculator from './ISSACalculator';
 
 interface Props {
   quote: Quote;
@@ -438,6 +439,20 @@ export default function QuoteBuilder({ quote, onSave, onBack, onPreview, onNew, 
                 <label className="block text-xs font-semibold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Supplies Cost ($)</label>
                 <input type="number" value={q.suppliesCost} onChange={e => update({ suppliesCost: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border text-sm" style={{ background: 'var(--cream-bg)', borderColor: 'var(--cream-border)', color: 'var(--text-primary)' }} min="0" step="0.01" />
               </div>
+            </div>
+          </div>
+
+          {/* ISSA Workloading Calculator */}
+          <div className="rounded-xl border overflow-hidden shadow-sm" style={{ background: 'var(--cream-card)', borderColor: 'var(--cream-border)' }}>
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>ISSA Workloading Calculator</h3>
+                <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--green-bg)', color: 'var(--teal)' }}>540 Times</span>
+              </div>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                Select tasks and enter quantities to calculate labor hours using official ISSA cleaning production rates.
+              </p>
+              <ISSACalculator onApplyHours={(hrs) => update({ laborHours: hrs })} />
             </div>
           </div>
 
