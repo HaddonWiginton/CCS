@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Cleaning Quote Dashboard',
-  description: 'Professional cleaning service quote builder',
+  title: 'CCS — Facility Services Quoting',
+  description: 'Complete Commercial Solutions — Service proposal and quoting dashboard',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

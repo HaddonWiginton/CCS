@@ -1,10 +1,13 @@
 'use client';
 
+import { useState, useRef } from 'react';
 import { Quote } from '@/lib/types';
 import {
   formatCurrency, formatDateLong, calcServiceAreaTotal,
   calcMaterialsTotal, calcLaborTotal, calcOverhead,
-  calcTotalCost, calcSellingPrice, calcDiscountsTotal
+  calcTotalCost, calcSellingPrice, calcDiscountsTotal,
+  calcServicesTotal, calcApprovedChangeOrders,
+  ADDON_OPTIONS,
 } from '@/lib/utils';
 
 interface Props {
@@ -18,209 +21,319 @@ export default function QuotePreview({ quote, onBack, darkMode, onToggleDark }: 
   const q = quote;
   const sellingPrice = calcSellingPrice(q);
   const discountsTotal = calcDiscountsTotal(q);
-  const finalPrice = sellingPrice - discountsTotal;
-
-  const handlePrint = () => window.print();
+  const changeOrderTotal = calcApprovedChangeOrders(q);
+  const finalPrice = sellingPrice - discountsTotal + changeOrderTotal;
 
   const customerName = q.customer.name || 'Customer';
   const address = [q.customer.address, q.customer.city, q.customer.state, q.customer.zip].filter(Boolean).join(', ');
 
+  const [sigName, setSigName] = useState('');
+  const [signed, setSigned] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const getPos = (e: any) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  };
+
+  const startDraw = (e: any) => {
+    setDrawing(true);
+    const ctx = canvasRef.current!.getContext('2d')!;
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e: any) => {
+    if (!drawing) return;
+    const ctx = canvasRef.current!.getContext('2d')!;
+    const { x, y } = getPos(e);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = darkMode ? '#e8e9ec' : '#2c2c2c';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDraw = () => setDrawing(false);
+
+  const clearSig = () => {
+    const canvas = canvasRef.current;
+    if (canvas) canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
+    setSigned(false);
+  };
+
+  const handlePrint = () => window.print();
+
   return (
-    <div className="min-h-screen" style={{ background: 'var(--cream-bg)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--cream-bg)', color: 'var(--text-primary)' }}>
       {/* Top bar */}
-      <div className="no-print flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: 'var(--cream-border)' }}>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <div className="no-print flex items-center justify-between px-6 py-3 border-b" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card)' }}>
+        <button onClick={onBack} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium" style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)' }}>
           ← Back to Dashboard
         </button>
         <div className="flex items-center gap-3">
-          <button onClick={onToggleDark} className="w-8 h-8 rounded-full flex items-center justify-center border text-sm" style={{ borderColor: 'var(--cream-border)' }}>
+          <button onClick={onToggleDark} className="w-8 h-8 rounded-full flex items-center justify-center border text-sm" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card)' }}>
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button onClick={handlePrint} className="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style={{ background: 'var(--teal)' }}>
+          <button onClick={handlePrint} className="px-4 py-1.5 rounded-lg text-white text-sm font-semibold" style={{ background: 'var(--teal)' }}>
             🖨 Print / Save PDF
           </button>
         </div>
       </div>
 
       {/* Proposal */}
-      <div className="max-w-3xl mx-auto my-8 bg-white rounded-2xl shadow-lg overflow-hidden" style={{ color: '#2d2a26' }}>
+      <div className="max-w-3xl mx-auto my-8 rounded-2xl shadow-lg overflow-hidden" style={{ background: 'var(--cream-card)' }}>
         {/* Header band */}
-        <div className="h-2" style={{ background: 'linear-gradient(90deg, var(--teal), var(--coral))' }} />
+        <div className="h-1.5" style={{ background: 'linear-gradient(90deg, var(--teal), var(--navy))' }} />
 
-        {/* Company Logo / Name */}
+        {/* Company Logo */}
         <div className="text-center pt-10 pb-6">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'var(--teal)' }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6l3 1 1-3"/>
-                <path d="M6 7l-2 10a2 2 0 001.5 2.4l10 2a2 2 0 002.3-1.5L20 10"/>
-                <path d="M10 14l5-5"/>
-              </svg>
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold tracking-wide" style={{ color: 'var(--teal)', fontFamily: 'Georgia, serif' }}>
-            SPARKLE PRO
-          </h1>
-          <div className="text-sm tracking-widest uppercase mt-1" style={{ color: 'var(--coral)' }}>
-            Professional Cleaning Services
-          </div>
+          <img src="/CCSLogocopy224w.webp" alt="Complete Commercial Solutions" className="h-20 mx-auto mb-4" />
         </div>
 
         {/* Title */}
         <div className="text-center pb-6">
-          <h2 className="text-2xl font-light tracking-wide" style={{ color: 'var(--teal)', fontFamily: 'Georgia, serif' }}>
+          <h2 className="text-3xl font-light tracking-widest" style={{ color: 'var(--teal)' }}>
             SERVICE PROPOSAL
           </h2>
-          <p className="mt-2 text-sm" style={{ color: '#6b6560' }}>
-            Prepared for <strong>{customerName}</strong>
+          <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Prepared for <strong style={{ color: 'var(--text-primary)' }}>{customerName}</strong>
           </p>
         </div>
 
         {/* Meta info */}
         <div className="px-10 pb-6 flex justify-between items-start">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--teal)' }}>Property Address</div>
-            <div className="text-sm" style={{ color: '#6b6560' }}>{address || '—'}</div>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--teal)' }}>Facility Address</div>
+            <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{address || '—'}</div>
+            {q.customer.squareFootage && (
+              <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{q.customer.squareFootage} sq ft · {q.customer.propertyType}</div>
+            )}
           </div>
           <div className="text-right text-sm">
             <div>Prepared: <strong>{formatDateLong(q.createdAt)}</strong></div>
-            <div>Valid through: <strong style={{ color: 'var(--coral)' }}>{formatDateLong(q.validUntil)}</strong></div>
-            <div className="text-xs mt-1" style={{ color: '#9b9590' }}>#{q.quoteNumber}</div>
+            <div>Valid through: <strong style={{ color: 'var(--teal)' }}>{formatDateLong(q.validUntil)}</strong></div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>#{q.quoteNumber}</div>
           </div>
         </div>
 
-        <hr className="mx-10" style={{ borderColor: '#e0d3be' }} />
+        <hr className="mx-10" style={{ borderColor: 'var(--cream-border)' }} />
 
         {/* Quote Details */}
-        <div className="mx-10 my-6 rounded-xl p-4" style={{ background: '#f5f0e8' }}>
-          <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--coral)' }}>Quote Details</div>
+        <div className="mx-10 my-6 rounded-xl p-4" style={{ background: 'var(--cream-card-alt, var(--cream-bg))' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--teal)' }}>Quote Details</div>
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <span style={{ color: '#6b6560' }}>Service Type: </span>
+              <span style={{ color: 'var(--text-secondary)' }}>Service Type: </span>
               <strong>{q.serviceType}</strong>
             </div>
             <div>
-              <span style={{ color: '#6b6560' }}>Frequency: </span>
+              <span style={{ color: 'var(--text-secondary)' }}>Frequency: </span>
               <strong>{q.frequency}</strong>
             </div>
             <div>
-              <span style={{ color: '#6b6560' }}>Work Order: </span>
+              <span style={{ color: 'var(--text-secondary)' }}>Work Order: </span>
               <strong>{q.workOrder || '—'}</strong>
             </div>
           </div>
-          {q.customer.squareFootage && (
-            <div className="text-sm mt-2">
-              <span style={{ color: '#6b6560' }}>Property Size: </span>
-              <strong>{q.customer.squareFootage} sq ft</strong>
+          {(q.projectManager || q.facilityContact) && (
+            <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+              {q.projectManager && <div><span style={{ color: 'var(--text-secondary)' }}>Project Manager: </span><strong>{q.projectManager}</strong></div>}
+              {q.facilityContact && <div><span style={{ color: 'var(--text-secondary)' }}>Facility Contact: </span><strong>{q.facilityContact}</strong></div>}
             </div>
           )}
         </div>
 
-        {/* Service Areas Breakdown */}
+        {/* Service Areas */}
         {q.serviceAreas.length === 0 ? (
-          <div className="text-center py-8 text-sm" style={{ color: '#9b9590' }}>No services configured</div>
+          <div className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>No service areas configured</div>
         ) : (
           <div className="mx-10 mb-6 space-y-4">
             {q.serviceAreas.map(area => (
-              <div key={area.id} className="rounded-xl border overflow-hidden" style={{ borderColor: '#e0d3be' }}>
-                <div className="flex justify-between items-center px-4 py-3" style={{ background: '#faf8f5' }}>
+              <div key={area.id} className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--cream-border)' }}>
+                <div className="flex justify-between items-center px-4 py-3" style={{ background: 'var(--cream-card-alt, var(--cream-bg))' }}>
                   <div className="font-semibold text-sm">{area.name}</div>
                   <div className="font-bold text-sm" style={{ color: 'var(--teal)' }}>{formatCurrency(calcServiceAreaTotal(area))}</div>
                 </div>
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ background: '#faf8f5', color: '#9b9590' }}>
-                      <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">Service</th>
-                      <th className="text-center px-2 py-2 text-xs font-semibold uppercase tracking-wider">Qty</th>
-                      <th className="text-right px-2 py-2 text-xs font-semibold uppercase tracking-wider">Rate</th>
-                      <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {area.tasks.map(t => (
-                      <tr key={t.id} className="border-t" style={{ borderColor: '#f0ebe5' }}>
-                        <td className="px-4 py-2">{t.name}</td>
-                        <td className="text-center px-2 py-2">{t.quantity}</td>
-                        <td className="text-right px-2 py-2">{formatCurrency(t.unitPrice)}</td>
-                        <td className="text-right px-4 py-2 font-medium">{formatCurrency(t.quantity * t.unitPrice)}</td>
+
+                {/* Tasks table */}
+                {area.tasks.length > 0 && (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ color: 'var(--text-muted)' }}>
+                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">Service</th>
+                        <th className="text-center px-2 py-2 text-xs font-semibold uppercase tracking-wider">Qty</th>
+                        <th className="text-right px-2 py-2 text-xs font-semibold uppercase tracking-wider">Rate</th>
+                        <th className="text-right px-4 py-2 text-xs font-semibold uppercase tracking-wider">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {area.tasks.map(t => (
+                        <tr key={t.id} className="border-t" style={{ borderColor: 'var(--cream-border)' }}>
+                          <td className="px-4 py-2">{t.name}</td>
+                          <td className="text-center px-2 py-2">{t.quantity}</td>
+                          <td className="text-right px-2 py-2">{formatCurrency(t.unitPrice)}</td>
+                          <td className="text-right px-4 py-2 font-medium">{formatCurrency(t.quantity * t.unitPrice)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Scope of Work */}
+                {area.scopeItems && area.scopeItems.length > 0 && (
+                  <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--cream-border)' }}>
+                    <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--teal)' }}>Scope of Work</div>
+                    <ul className="list-none space-y-1">
+                      {area.scopeItems.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          <span style={{ color: 'var(--teal)' }}>✓</span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Add-ons */}
+                {area.selectedAddons && area.selectedAddons.length > 0 && (
+                  <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--cream-border)' }}>
+                    <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--teal)' }}>Included Add-ons</div>
+                    {area.selectedAddons.map(aid => {
+                      const addon = ADDON_OPTIONS.find(a => a.id === aid);
+                      if (!addon) return null;
+                      return (
+                        <div key={aid} className="flex justify-between text-sm py-0.5">
+                          <span style={{ color: 'var(--text-secondary)' }}>{addon.name}</span>
+                          <span style={{ color: addon.price > 0 ? 'var(--text-primary)' : 'var(--teal)' }}>
+                            {addon.price > 0 ? formatCurrency(addon.price) : 'Included'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Approved Change Orders */}
+        {(q.changeOrders || []).filter(co => co.status === 'Approved').length > 0 && (
+          <div className="mx-10 mb-6 rounded-xl border p-4" style={{ borderColor: 'var(--cream-border)', background: 'var(--gold-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--gold)' }}>Approved Change Orders</div>
+            {q.changeOrders.filter(co => co.status === 'Approved').map(co => (
+              <div key={co.id} className="flex justify-between text-sm py-1">
+                <span>{co.description}</span>
+                <span className="font-semibold">{formatCurrency(co.amount)}</span>
               </div>
             ))}
           </div>
         )}
 
         {/* Pricing Summary */}
-        <div className="mx-10 mb-6 rounded-xl p-5" style={{ background: '#f5f0e8' }}>
-          <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--coral)' }}>Pricing Summary</div>
+        <div className="mx-10 mb-6 rounded-xl p-5" style={{ background: 'var(--cream-card-alt, var(--cream-bg))' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--teal)' }}>Pricing Summary</div>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span style={{ color: '#6b6560' }}>Services</span>
-              <span>{formatCurrency(calcMaterialsTotal(q) - q.suppliesCost)}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>Services</span>
+              <span>{formatCurrency(calcServicesTotal(q))}</span>
             </div>
             {q.suppliesCost > 0 && (
               <div className="flex justify-between">
-                <span style={{ color: '#6b6560' }}>Supplies</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Supplies</span>
                 <span>{formatCurrency(q.suppliesCost)}</span>
               </div>
             )}
             {calcLaborTotal(q) > 0 && (
               <div className="flex justify-between">
-                <span style={{ color: '#6b6560' }}>Labor</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Labor</span>
                 <span>{formatCurrency(calcLaborTotal(q))}</span>
               </div>
             )}
             {discountsTotal > 0 && (
-              <div className="flex justify-between" style={{ color: 'var(--sage)' }}>
-                <span>Discounts</span>
-                <span>-{formatCurrency(discountsTotal)}</span>
+              <div className="flex justify-between" style={{ color: 'var(--teal)' }}>
+                <span>Credits & Adjustments</span>
+                <span>−{formatCurrency(discountsTotal)}</span>
               </div>
             )}
-            <hr style={{ borderColor: '#e0d3be' }} />
-            <div className="flex justify-between text-lg font-bold pt-1">
-              <span>Total</span>
-              <span style={{ color: 'var(--teal)' }}>{formatCurrency(finalPrice)}</span>
-            </div>
-            {q.frequency !== 'One-time' && (
-              <div className="text-xs text-right" style={{ color: '#9b9590' }}>
-                Billed {q.frequency.toLowerCase()}
+            {changeOrderTotal > 0 && (
+              <div className="flex justify-between" style={{ color: 'var(--gold)' }}>
+                <span>Change Orders</span>
+                <span>+{formatCurrency(changeOrderTotal)}</span>
               </div>
             )}
           </div>
         </div>
 
+        {/* Investment Summary */}
+        <div className="mx-10 mb-6 rounded-2xl p-8 text-center text-white" style={{ background: 'linear-gradient(135deg, var(--navy), var(--teal))' }}>
+          <div className="text-xs font-semibold uppercase tracking-widest mb-2 opacity-80">Investment Summary</div>
+          <div className="text-4xl font-bold">{formatCurrency(finalPrice)}</div>
+          {discountsTotal > 0 && <div className="text-xs mt-2 opacity-70">After credits of {formatCurrency(discountsTotal)}</div>}
+          {q.frequency !== 'One-time' && (
+            <div className="text-xs mt-1 opacity-70">Billed {q.frequency.toLowerCase()}</div>
+          )}
+        </div>
+
         {/* Payment Terms */}
-        <div className="mx-10 mb-6 rounded-xl border p-4" style={{ borderColor: '#e0d3be', background: '#faf8f5' }}>
-          <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--coral)' }}>Payment Terms</div>
-          <p className="text-sm leading-relaxed" style={{ color: '#6b6560' }}>{q.paymentTerms}</p>
+        <div className="mx-10 mb-6 rounded-xl border p-4" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card-alt, var(--cream-bg))' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--teal)' }}>Payment Terms</div>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{q.paymentTerms}</p>
         </div>
 
         {/* Notes */}
         {q.customer.notes && (
-          <div className="mx-10 mb-6 rounded-xl border p-4" style={{ borderColor: '#e0d3be', background: '#faf8f5' }}>
-            <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--coral)' }}>Special Notes</div>
-            <p className="text-sm leading-relaxed" style={{ color: '#6b6560' }}>{q.customer.notes}</p>
+          <div className="mx-10 mb-6 rounded-xl border p-4" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card-alt, var(--cream-bg))' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--teal)' }}>Special Notes</div>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{q.customer.notes}</p>
           </div>
         )}
 
-        {/* Signature area */}
-        <div className="mx-10 mb-10 grid grid-cols-2 gap-8">
-          <div>
-            <div className="border-b mb-2 pb-8" style={{ borderColor: '#e0d3be' }} />
-            <div className="text-xs" style={{ color: '#9b9590' }}>Customer Signature / Date</div>
+        {/* Digital Signature */}
+        <div className="mx-10 mb-10 rounded-xl border p-6" style={{ borderColor: 'var(--cream-border)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--teal)' }}>Digital Acceptance</div>
+          <div className="mb-3">
+            <label className="block text-xs font-semibold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Full Name</label>
+            <input type="text" value={sigName} onChange={e => setSigName(e.target.value)} placeholder="Type your full name"
+              className="w-full max-w-sm px-3 py-2 rounded-lg border text-sm"
+              style={{ background: 'var(--cream-bg)', borderColor: 'var(--cream-border)', color: 'var(--text-primary)' }}
+            />
           </div>
           <div>
-            <div className="border-b mb-2 pb-8" style={{ borderColor: '#e0d3be' }} />
-            <div className="text-xs" style={{ color: '#9b9590' }}>Company Representative / Date</div>
+            <label className="block text-xs font-semibold mb-1 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Signature</label>
+            <canvas ref={canvasRef} width={400} height={120}
+              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
+              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
+              className="rounded-lg border cursor-crosshair"
+              style={{ display: 'block', width: '100%', maxWidth: 400, height: 120, background: 'var(--cream-bg)', borderColor: 'var(--cream-border)' }}
+            />
+            <div className="flex gap-3 mt-3">
+              <button onClick={clearSig} className="px-3 py-1.5 rounded-lg border text-xs font-medium" style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)' }}>Clear</button>
+              <button onClick={() => setSigned(true)} disabled={!sigName}
+                className="px-4 py-1.5 rounded-lg text-white text-xs font-semibold disabled:opacity-40"
+                style={{ background: 'var(--teal)' }}
+              >Accept Proposal</button>
+            </div>
+            {signed && (
+              <div className="mt-3 p-3 rounded-lg" style={{ background: 'var(--green-bg)', border: '1px solid var(--teal)' }}>
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--teal)' }}>
+                  ✓ Proposal accepted by {sigName}
+                </div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{new Date().toLocaleString()}</div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="text-center py-6 text-xs" style={{ color: '#9b9590', background: '#faf8f5' }}>
-          <p>Thank you for choosing Sparkle Pro Cleaning Services</p>
-          <p className="mt-1">Questions? Contact us at info@sparklepro.com | (555) 123-4567</p>
+        <div className="text-center py-6 text-xs" style={{ color: 'var(--text-muted)', background: 'var(--cream-card-alt, var(--cream-bg))' }}>
+          <p>Complete Commercial Solutions — Expert Care for Your Facility</p>
+          <p className="mt-1">Questions? Contact us at info@completecommercialsolutions.com</p>
         </div>
       </div>
     </div>

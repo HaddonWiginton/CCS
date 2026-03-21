@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Quote, ViewMode } from '@/lib/types';
-import { createNewQuote, loadQuotes, saveQuotes } from '@/lib/utils';
+import { createNewQuote, loadQuotes, saveQuotes, generateId, generateQuoteNumber } from '@/lib/utils';
 import QuoteHistory from '@/components/QuoteHistory';
 import QuoteBuilder from '@/components/QuoteBuilder';
 import QuotePreview from '@/components/QuotePreview';
@@ -17,7 +17,7 @@ export default function Home() {
   useEffect(() => {
     const saved = loadQuotes();
     setQuotes(saved);
-    const dm = window.localStorage.getItem('cleaning-dark-mode');
+    const dm = window.localStorage.getItem('ccs-dark-mode');
     if (dm === 'true') { setDarkMode(true); document.documentElement.classList.add('dark'); }
     setLoaded(true);
   }, []);
@@ -26,7 +26,7 @@ export default function Home() {
     setDarkMode(d => {
       const next = !d;
       document.documentElement.classList.toggle('dark', next);
-      window.localStorage.setItem('cleaning-dark-mode', String(next));
+      window.localStorage.setItem('ccs-dark-mode', String(next));
       return next;
     });
   };
@@ -50,7 +50,13 @@ export default function Home() {
   };
 
   const handleDuplicate = (q: Quote) => {
-    const dup = { ...JSON.parse(JSON.stringify(q)), id: crypto.randomUUID?.() || Math.random().toString(36).slice(2), quoteNumber: `CL-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`, status: 'Draft' as const, createdAt: new Date().toISOString() };
+    const dup = {
+      ...JSON.parse(JSON.stringify(q)),
+      id: generateId(),
+      quoteNumber: generateQuoteNumber(),
+      status: 'Draft' as const,
+      createdAt: new Date().toISOString(),
+    };
     const updated = [dup, ...quotes];
     persistQuotes(updated);
   };
@@ -88,7 +94,11 @@ export default function Home() {
     input.click();
   };
 
-  if (!loaded) return <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--cream-bg)' }}><div className="animate-pulse text-lg" style={{ color: 'var(--text-muted)' }}>Loading...</div></div>;
+  if (!loaded) return (
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'var(--cream-bg)' }}>
+      <div className="animate-pulse text-lg" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--cream-bg)' }}>

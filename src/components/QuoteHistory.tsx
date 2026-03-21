@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Quote } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, calcSellingPrice } from '@/lib/utils';
 
 interface Props {
   quotes: Quote[];
@@ -23,40 +23,37 @@ export default function QuoteHistory({ quotes, onNew, onOpen, onDuplicate, onDel
       q.customer.name.toLowerCase().includes(s) ||
       q.quoteNumber.toLowerCase().includes(s) ||
       q.workOrder.toLowerCase().includes(s) ||
+      q.status.toLowerCase().includes(s) ||
+      (q.customer.address || '').toLowerCase().includes(s) ||
       (q.customer.name === '' && 'untitled quote'.includes(s))
     );
   });
 
   const getDisplayName = (q: Quote) => q.customer.name || 'Untitled Quote';
-  const getAmount = (q: Quote) => {
-    const tasks = q.serviceAreas.reduce((sum, a) => sum + a.tasks.reduce((s, t) => s + t.quantity * t.unitPrice, 0), 0);
-    return tasks + q.suppliesCost + q.laborRate * q.laborHours;
+
+  const statusColors: Record<string, string> = {
+    Draft: 'var(--text-muted)',
+    Sent: 'var(--gold)',
+    Accepted: 'var(--teal)',
+    Expired: 'var(--coral)',
   };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--cream-bg)' }}>
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--cream-border)' }}>
+      <header className="flex items-center justify-between px-6 py-4 border-b shadow-sm" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--teal)' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6l3 1 1-3"/>
-              <path d="M6 7l-2 10a2 2 0 001.5 2.4l10 2a2 2 0 002.3-1.5L20 10"/>
-              <path d="M10 14l5-5"/>
-              <path d="M14 10l1 1"/>
-              <path d="M10 14l1 1"/>
-            </svg>
-          </div>
-          <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'Georgia, serif' }}>
-            Cleaning Quote History
+          <img src="/CCSLogocopy224w.webp" alt="Complete Commercial Solutions" className="h-10" />
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Facility Services Quoting
           </h1>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onToggleDark} className="w-10 h-10 rounded-full flex items-center justify-center border" style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)' }}>
+          <button onClick={onToggleDark} className="w-10 h-10 rounded-full flex items-center justify-center border" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card)' }}>
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button onClick={onNew} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-medium" style={{ background: 'var(--teal)' }}>
-            <span className="text-lg">+</span> New Quote
+          <button onClick={onNew} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-semibold text-sm" style={{ background: 'var(--teal)' }}>
+            <span className="text-lg leading-none">+</span> New Quote
           </button>
         </div>
       </header>
@@ -67,7 +64,7 @@ export default function QuoteHistory({ quotes, onNew, onOpen, onDuplicate, onDel
         <div className="mb-6">
           <input
             type="text"
-            placeholder="Search by customer, quote ID, or work order..."
+            placeholder="Search by customer, quote ID, work order, or status..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full px-4 py-3 rounded-lg border text-sm outline-none"
@@ -75,55 +72,61 @@ export default function QuoteHistory({ quotes, onNew, onOpen, onDuplicate, onDel
           />
         </div>
 
-        {/* Table Header */}
-        <div className="grid grid-cols-12 gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          <div className="col-span-5">Customer</div>
-          <div className="col-span-2">Amount</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-2">Date</div>
-          <div className="col-span-1"></div>
-        </div>
+        {/* Table */}
+        <div className="rounded-xl border overflow-hidden shadow-sm" style={{ background: 'var(--cream-card)', borderColor: 'var(--cream-border)' }}>
+          <div className="grid grid-cols-12 gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider border-b" style={{ color: 'var(--text-muted)', borderColor: 'var(--cream-border)' }}>
+            <div className="col-span-4">Customer</div>
+            <div className="col-span-2">Amount</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-2"></div>
+          </div>
 
-        {/* Quote Rows */}
-        <div className="divide-y" style={{ borderColor: 'var(--cream-border)' }}>
-          {filtered.length === 0 && (
+          {filtered.length === 0 ? (
             <div className="py-12 text-center" style={{ color: 'var(--text-muted)' }}>
-              {quotes.length === 0 ? 'No quotes yet. Click "+ New Quote" to get started.' : 'No quotes match your search.'}
+              {quotes.length === 0 ? 'No quotes yet — click "+ New Quote" to get started.' : 'No quotes match your search.'}
             </div>
-          )}
-          {filtered.map(q => (
+          ) : filtered.map(q => (
             <div
               key={q.id}
-              className="grid grid-cols-12 gap-4 px-4 py-4 items-center cursor-pointer rounded-lg hover:shadow-sm transition-all"
+              className="grid grid-cols-12 gap-4 px-5 py-4 items-center cursor-pointer border-b last:border-b-0 transition-colors"
               style={{ borderColor: 'var(--cream-border)' }}
               onClick={() => onOpen(q)}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--cream-card-alt, var(--cream-bg))')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <div className="col-span-5">
-                <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>{getDisplayName(q)}</div>
+              <div className="col-span-4">
+                <div className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{getDisplayName(q)}</div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{q.quoteNumber}</div>
               </div>
-              <div className="col-span-2 font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
-                {formatCurrency(getAmount(q))}
+              <div className="col-span-2 font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+                {formatCurrency(calcSellingPrice(q))}
               </div>
               <div className="col-span-2">
-                <span className={`text-sm ${q.status === 'Accepted' ? 'text-green-600' : q.status === 'Sent' ? 'text-blue-600' : q.status === 'Declined' ? 'text-red-500' : ''}`} style={q.status === 'Draft' ? { color: 'var(--text-secondary)' } : {}}>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold"
+                  style={{
+                    color: statusColors[q.status] || 'var(--text-muted)',
+                    background: q.status === 'Accepted' ? 'var(--green-bg)' : q.status === 'Sent' ? 'var(--gold-bg)' : q.status === 'Expired' ? '#fdecea' : 'var(--cream-bg)',
+                    border: `1px solid ${(statusColors[q.status] || 'var(--text-muted)') + '40'}`,
+                  }}
+                >
                   {q.status}
                 </span>
               </div>
               <div className="col-span-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {formatDate(q.createdAt)}
               </div>
-              <div className="col-span-1 flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
+              <div className="col-span-2 flex items-center gap-2 justify-end" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => onDuplicate(q)}
-                  className="px-3 py-1.5 text-xs rounded-md border font-medium"
-                  style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)' }}
+                  className="px-3 py-1.5 text-xs rounded-lg border font-medium transition-colors"
+                  style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)', background: 'var(--cream-card)' }}
                 >
                   Duplicate
                 </button>
                 <button
                   onClick={() => { if (confirm('Delete this quote?')) onDelete(q.id); }}
-                  className="p-1.5 rounded-md"
+                  className="p-1.5 rounded-lg transition-colors"
                   style={{ color: 'var(--coral)' }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

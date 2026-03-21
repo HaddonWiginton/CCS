@@ -3,13 +3,15 @@ export interface CleaningTask {
   name: string;
   quantity: number;
   unitPrice: number;
-  unit: string; // 'each' | 'sqft' | 'hr'
+  unit: string; // 'each' | 'sqft' | 'hr' | 'visit' | 'pane'
 }
 
 export interface ServiceArea {
   id: string;
-  name: string; // e.g. "Kitchen", "Living Room", "Bathrooms (x3)"
+  name: string; // e.g. "Office Floor 1", "Warehouse", "Restrooms"
   tasks: CleaningTask[];
+  scopeItems: string[];
+  selectedAddons: string[];
 }
 
 export interface CustomerInfo {
@@ -20,7 +22,7 @@ export interface CustomerInfo {
   city: string;
   state: string;
   zip: string;
-  propertyType: string; // Residential, Commercial, etc.
+  propertyType: string; // Commercial, Industrial, Medical, Retail, etc.
   squareFootage: string;
   notes: string;
 }
@@ -32,23 +34,35 @@ export interface Discount {
   value: number;
 }
 
+export interface ChangeOrder {
+  id: string;
+  description: string;
+  reason: string;
+  amount: number;
+  status: 'Pending' | 'Approved' | 'Declined';
+  createdAt: string;
+}
+
 export interface Quote {
   id: string;
   quoteNumber: string;
   customer: CustomerInfo;
   serviceAreas: ServiceArea[];
   discounts: Discount[];
-  laborRate: number; // per hour
+  changeOrders: ChangeOrder[];
+  laborRate: number;
   laborHours: number;
   suppliesCost: number;
   overheadPercent: number;
   marginPercent: number;
   sellingPrice: number;
   useCustomPrice: boolean;
-  status: 'Draft' | 'Sent' | 'Accepted' | 'Declined';
+  status: 'Draft' | 'Sent' | 'Accepted' | 'Expired';
   serviceType: string;
   frequency: string;
   workOrder: string;
+  projectManager: string;
+  facilityContact: string;
   paymentTerms: string;
   createdAt: string;
   validUntil: string;
