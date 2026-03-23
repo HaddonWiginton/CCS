@@ -194,7 +194,7 @@ export default function QuoteBuilder({ quote, onSave, onBack, onPreview, onNew, 
           <button onClick={() => { save(); onBack(); }} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium" style={{ borderColor: 'var(--cream-border)', color: 'var(--text-secondary)' }}>
             ← All Quotes
           </button>
-          <img src="/CCSLogocopy224w.webp" alt="CCS" className="h-7" />
+          <img src="/ccs-icon.png" alt="CCS" className="h-7 w-7" />
           <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Service Quote Dashboard</span>
           <span className="text-xs px-2 py-1 rounded-md" style={{ background: 'var(--cream-bg)', color: 'var(--text-muted)' }}>{q.quoteNumber}</span>
         </div>

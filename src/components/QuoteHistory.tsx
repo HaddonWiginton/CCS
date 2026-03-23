@@ -43,7 +43,7 @@ export default function QuoteHistory({ quotes, onNew, onOpen, onDuplicate, onDel
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b shadow-sm" style={{ borderColor: 'var(--cream-border)', background: 'var(--cream-card)' }}>
         <div className="flex items-center gap-3">
-          <img src="/CCSLogocopy224w.webp" alt="Complete Commercial Solutions" className="h-10" />
+          <img src="/ccs-logo.png" alt="Complete Commercial Solutions" className="h-10" />
           <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
             Facility Services Quoting
           </h1>
