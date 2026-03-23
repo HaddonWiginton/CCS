@@ -92,7 +92,7 @@ export default function QuotePreview({ quote, onBack, darkMode, onToggleDark }: 
 
         {/* Company Logo */}
         <div className="text-center pt-10 pb-6">
-          <img src="/ccs-logo.png" alt="Complete Commercial Solutions" className="h-20 mx-auto mb-4" />
+          <img src={darkMode ? "/ccs-logo-dark.png" : "/ccs-logo.png"} alt="Complete Commercial Solutions" className="h-20 mx-auto mb-4" />
         </div>
 
         {/* Title */}
